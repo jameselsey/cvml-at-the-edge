@@ -1,2 +1,3 @@
 venv_hailo_rpi5_examples
 __pycache__
+*.log
