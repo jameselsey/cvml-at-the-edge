@@ -45,14 +45,12 @@ def app_callback(pad, info, user_data):
 
     # Increment frame count
     user_data.increment()
-    #string_to_print = f"Frame count: {user_data.get_count()}\n"
 
     # Get the caps from the pad
     format, width, height = get_caps_from_pad(pad)
 
     # Retrieve the video frame if required
     frame = None
-    #print(f"use_frame {user_data.use_frame}, format {format}, width {width}, height {height}")
     if user_data.use_frame and format and width and height:
         frame = get_numpy_from_buffer(buffer, format, width, height)
 
@@ -79,49 +77,6 @@ def app_callback(pad, info, user_data):
         confidences.append(confidence)
         class_ids.append(label)  # Ensure label is an integer class ID
 
-    if boxes:
-        # Convert lists to numpy arrays
-        boxes = np.array(boxes)
-        confidences = np.array(confidences)
-        class_ids = np.array(class_ids)
-
-
-        # Create Supervision Detections object
-        #detections = sv.Detections(
-        #    xyxy=boxes,
-        #    confidence=confidences,
-        #    class_id=class_ids
-        #)
-        detections = sv.Detections.empty()
-    else:
-        #init with empty
-        detections = sv.Detections.empty()
-
-    # Update tracker with current detections
-    tracked_objects = tracker.update_with_detections(detections=detections)
-
-    # Annotate frame with tracking information if frame is available
-    #print(f"Frame is {frame}")
-    if frame is not None:
-        print("doing the annotations")
-        # Initialize annotator
-        box_annotator = sv.BoxAnnotator()
-
-        # Annotate frame
-        frame = box_annotator.annotate(scene=frame, detections=tracked_objects)
-
-        # Display additional information
-        cv2.putText(frame, f"Detections: {len(tracked_objects)}", (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-        cv2.putText(frame, f"{user_data.new_function()} {user_data.new_variable}", (10, 60),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-
-        # Convert frame to BGR for display
-        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-        user_data.set_frame(frame)
-
-    # Print frame and detection information
-    #print(string_to_print)
     return Gst.PadProbeReturn.OK
 
 
