@@ -203,10 +203,12 @@ def SOURCE_PIPELINE(video_source, video_format='RGB', video_width=640, video_hei
             'video/x-raw, width=640, height=480 ! '
         )
     else:
+        # the videos that I'm capturing on my Pixel 6a are in H265 format not H264. Update the below if sourcing video files from somewhere else.
+        # you can check the format of a video using: ffprobe /path/to/video.mp4
         source_element = (
             f'filesrc location="{video_source}" name={name} ! '
             f'{QUEUE(name=f"{name}_queue_dec264")} ! '
-            'qtdemux ! h264parse ! avdec_h264 max-threads=2 ! '
+            'qtdemux ! h265parse ! avdec_h265 max-threads=2 ! '
         )
     source_pipeline = (
         f'{source_element} '
