@@ -17,6 +17,9 @@ from detection_pipeline import GStreamerDetectionApp
 tracker = sv.ByteTrack()
 label_annotator = sv.LabelAnnotator()
 
+# Set to keep track of emitted tracking IDs
+emitted_ids = set()
+
 # -----------------------------------------------------------------------------------------------
 # User-defined class to be used in the callback function
 # -----------------------------------------------------------------------------------------------
@@ -42,13 +45,14 @@ def app_callback(pad, info, user_data):
 
     # Increment frame count
     user_data.increment()
-    string_to_print = f"Frame count: {user_data.get_count()}\n"
+    #string_to_print = f"Frame count: {user_data.get_count()}\n"
 
     # Get the caps from the pad
     format, width, height = get_caps_from_pad(pad)
 
     # Retrieve the video frame if required
     frame = None
+    #print(f"use_frame {user_data.use_frame}, format {format}, width {width}, height {height}")
     if user_data.use_frame and format and width and height:
         frame = get_numpy_from_buffer(buffer, format, width, height)
 
@@ -62,7 +66,12 @@ def app_callback(pad, info, user_data):
     class_ids = []
 
     for detection in hailo_detections:
-        print(f"Detection: {detection.get_label()} {detection.get_confidence():.2f}\n")
+        tracking_id = detection.get_objects_typed(hailo.HAILO_UNIQUE_ID)[0].get_id()
+        # Emit event only if the tracking ID hasn't been emitted before
+        if tracking_id not in emitted_ids:
+            print(f"Detection!: {tracking_id} {detection.get_label()} {detection.get_confidence():.2f}\n")
+            emitted_ids.add(tracking_id)
+    
         label = detection.get_label()
         bbox = detection.get_bbox()
         confidence = detection.get_confidence()
@@ -78,11 +87,12 @@ def app_callback(pad, info, user_data):
 
 
         # Create Supervision Detections object
-        detections = sv.Detections(
-            xyxy=boxes,
-            confidence=confidences,
-            class_id=class_ids
-        )
+        #detections = sv.Detections(
+        #    xyxy=boxes,
+        #    confidence=confidences,
+        #    class_id=class_ids
+        #)
+        detections = sv.Detections.empty()
     else:
         #init with empty
         detections = sv.Detections.empty()
@@ -91,7 +101,7 @@ def app_callback(pad, info, user_data):
     tracked_objects = tracker.update_with_detections(detections=detections)
 
     # Annotate frame with tracking information if frame is available
-    frame = None
+    #print(f"Frame is {frame}")
     if frame is not None:
         print("doing the annotations")
         # Initialize annotator
@@ -111,7 +121,7 @@ def app_callback(pad, info, user_data):
         user_data.set_frame(frame)
 
     # Print frame and detection information
-    print(string_to_print)
+    #print(string_to_print)
     return Gst.PadProbeReturn.OK
 
 
