@@ -88,11 +88,12 @@ def app_callback(pad, info, user_data):
         detections = sv.Detections.empty()
 
     # Update tracker with current detections
-    # tracked_objects = byte_tracker.update(detections=detections)
+    tracked_objects = tracker.update_with_detections(detections=detections)
 
     # Annotate frame with tracking information if frame is available
     frame = None
     if frame is not None:
+        print("doing the annotations")
         # Initialize annotator
         box_annotator = sv.BoxAnnotator()
 
