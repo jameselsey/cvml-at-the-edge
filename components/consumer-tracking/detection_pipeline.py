@@ -92,22 +92,30 @@ class GStreamerDetectionApp(GStreamerApp):
 
     def get_pipeline_string(self):
         source_pipeline = SOURCE_PIPELINE(self.video_source)
-        detection_pipeline = INFERENCE_PIPELINE(
-            hef_path=self.hef_path,
-            post_process_so=self.post_process_so,
-            batch_size=self.batch_size,
-            config_json=self.labels_json,
-            additional_params=self.thresholds_str)
-        user_callback_pipeline = USER_CALLBACK_PIPELINE()
-        display_pipeline = DISPLAY_PIPELINE(video_sink=self.video_sink, sync=self.sync, show_fps=self.show_fps)
-        pipeline_string = (
-            f'{source_pipeline} '
-            f'{detection_pipeline} ! '
-            f'{user_callback_pipeline} ! '
-            f'{display_pipeline}'
-        )
+       
+        #detection_pipeline = INFERENCE_PIPELINE(
+        #    hef_path=self.hef_path,
+        #    post_process_so=self.post_process_so,
+        #    batch_size=self.batch_size,
+        #    config_json=self.labels_json,
+        #    additional_params=self.thresholds_str)
+        # user_callback_pipeline = USER_CALLBACK_PIPELINE()
+        # display_pipeline = DISPLAY_PIPELINE(video_sink=self.video_sink, sync=self.sync, show_fps=self.show_fps)
+        #pipeline_string = (
+        #    f'{source_pipeline} '
+        #    f'{detection_pipeline} ! '
+        #    f'{user_callback_pipeline} ! '
+        #    f'{display_pipeline}'
+        #)
 
-
+        source_pipeline = "shmsrc socket-path=/tmp/feed.raw do-timestamp=true is-live=true ! "
+        source_pipeline += "video/x-raw, format=NV12, width=1920, height=1080, framerate=30/1,pixel-aspect-ratio=1/1 ! "
+        source_pipeline += "videoconvert ! "
+        source_pipeline += "queue name=source_scale_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! "
+        source_pipeline += "videoscale name=source_videoscale n-threads=2 ! "
+        source_pipeline += "queue name=source_convert_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! "
+        source_pipeline += "videoconvert n-threads=3 name=source_convert qos=false ! "
+        #source_pipeline += "video/x-raw, format=RGB, pixel-aspect-ratio=1/1 ! "
         #override the pipeline string to use tracking
         pipeline_string = (
            source_pipeline
@@ -136,6 +144,7 @@ class GStreamerDetectionApp(GStreamerApp):
            + QUEUE("queue_textoverlay")
            + "! textoverlay name=hailo_text text='test text' valignment=top halignment=center ! "
            + QUEUE("queue_hailo_display")
+#           + "! shmsink socket-path=/tmp/infered.feed sync=false wait-for-connection=false"
            + f"! fpsdisplaysink video-sink={self.video_sink} name=hailo_display sync={self.sync} text-overlay={self.show_fps} signal-fps-measurements=true "
         )
 
