@@ -109,7 +109,7 @@ class GStreamerDetectionApp(GStreamerApp):
         #)
 
         source_pipeline = "shmsrc socket-path=/tmp/feed.raw do-timestamp=true is-live=true ! "
-        source_pipeline += "video/x-raw, format=NV12, width=1920, height=1080, framerate=30/1,pixel-aspect-ratio=1/1 ! "
+        source_pipeline += "video/x-raw, format=NV12, width=1920, height=1080, framerate=30/1 ! "
         source_pipeline += "videoconvert ! "
         source_pipeline += "queue name=source_scale_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! "
         source_pipeline += "videoscale name=source_videoscale n-threads=2 ! "
@@ -143,9 +143,9 @@ class GStreamerDetectionApp(GStreamerApp):
            + "! videoconvert n-threads=3 qos=false ! "
            + QUEUE("queue_textoverlay")
            + "! textoverlay name=hailo_text text='test text' valignment=top halignment=center ! "
-           + QUEUE("queue_hailo_display")
-#           + "! shmsink socket-path=/tmp/infered.feed sync=false wait-for-connection=false"
-           + f"! fpsdisplaysink video-sink={self.video_sink} name=hailo_display sync={self.sync} text-overlay={self.show_fps} signal-fps-measurements=true "
+           #+ QUEUE("queue_hailo_display")
+           + "shmsink socket-path=/tmp/infered.feed sync=false wait-for-connection=false"
+           #+ f"! fpsdisplaysink video-sink={self.video_sink} name=hailo_display sync={self.sync} text-overlay={self.show_fps} signal-fps-measurements=true "
         )
 
         print(pipeline_string)
