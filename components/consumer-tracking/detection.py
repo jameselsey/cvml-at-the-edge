@@ -20,6 +20,10 @@ label_annotator = sv.LabelAnnotator()
 # Set to keep track of emitted tracking IDs
 emitted_ids = set()
 
+# Define the target classes for detection
+# this should align to the COCO list of objects
+target_classes = {'car', 'bus', 'truck', 'motorcycle'}
+
 # -----------------------------------------------------------------------------------------------
 # User-defined class to be used in the callback function
 # -----------------------------------------------------------------------------------------------
@@ -58,12 +62,18 @@ def app_callback(pad, info, user_data):
     roi = hailo.get_roi_from_buffer(buffer)
     hailo_detections = roi.get_objects_typed(hailo.HAILO_DETECTION)
 
+    # Filter detections to include only target classes
+    filtered_detections = [
+        detection for detection in hailo_detections
+        if detection.get_label() in target_classes
+    ]
+
     # Prepare detection data for Supervision
     boxes = []
     confidences = []
     class_ids = []
 
-    for detection in hailo_detections:
+    for detection in filtered_detections:
         tracking_id = detection.get_objects_typed(hailo.HAILO_UNIQUE_ID)[0].get_id()
         # Emit event only if the tracking ID hasn't been emitted before
         if tracking_id not in emitted_ids:
