@@ -141,8 +141,8 @@ class GStreamerDetectionApp(GStreamerApp):
            + "! hailooverlay ! "
            + QUEUE("queue_videoconvert")
            + "! videoconvert n-threads=3 qos=false ! "
-           + QUEUE("queue_textoverlay")
-           + "! textoverlay name=hailo_text text='test text' valignment=top halignment=center ! "
+      #     + QUEUE("queue_textoverlay")
+      #     + "! textoverlay name=hailo_text text='test text' valignment=top halignment=center ! "
            #+ QUEUE("queue_hailo_display")
            + "shmsink socket-path=/tmp/infered.feed sync=false wait-for-connection=false"
            #+ f"! fpsdisplaysink video-sink={self.video_sink} name=hailo_display sync={self.sync} text-overlay={self.show_fps} signal-fps-measurements=true "
