@@ -73,6 +73,8 @@ class GStreamerDetectionApp(GStreamerApp):
 
         # Set the post-processing shared object file
         self.post_process_so = os.path.join(self.current_path, 'libyolo_hailortpp_postprocess.so')
+        
+        self.cropper_process_so = os.path.join(self.current_path, 'libwhole_buffer.so')
 
         # User-defined label JSON file
         self.labels_json = args.labels_json
@@ -93,39 +95,63 @@ class GStreamerDetectionApp(GStreamerApp):
     def get_pipeline_string(self):
         source_pipeline = SOURCE_PIPELINE(self.video_source)
        
-        #detection_pipeline = INFERENCE_PIPELINE(
-        #    hef_path=self.hef_path,
-        #    post_process_so=self.post_process_so,
-        #    batch_size=self.batch_size,
-        #    config_json=self.labels_json,
-        #    additional_params=self.thresholds_str)
-        # user_callback_pipeline = USER_CALLBACK_PIPELINE()
-        # display_pipeline = DISPLAY_PIPELINE(video_sink=self.video_sink, sync=self.sync, show_fps=self.show_fps)
-        #pipeline_string = (
-        #    f'{source_pipeline} '
-        #    f'{detection_pipeline} ! '
-        #    f'{user_callback_pipeline} ! '
-        #    f'{display_pipeline}'
-        #)
+        detection_pipeline = INFERENCE_PIPELINE(
+            hef_path=self.hef_path,
+            post_process_so=self.post_process_so,
+            batch_size=self.batch_size,
+            config_json=self.labels_json,
+            additional_params=self.thresholds_str)
+        user_callback_pipeline = USER_CALLBACK_PIPELINE()
+        display_pipeline = DISPLAY_PIPELINE(video_sink=self.video_sink, sync=self.sync, show_fps=self.show_fps)
+        
+        pipeline_string = (
+            f'{source_pipeline} '
+            f'{detection_pipeline} ! '
+            f'{user_callback_pipeline} ! '
+            f'{display_pipeline}'
+        )
 
-        source_pipeline = "shmsrc socket-path=/tmp/feed.raw do-timestamp=true is-live=true ! "
-        source_pipeline += "video/x-raw, format=NV12, width=1920, height=1080, framerate=30/1 ! "
-        source_pipeline += "videoconvert ! "
-        source_pipeline += "queue name=source_scale_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! "
-        source_pipeline += "videoscale name=source_videoscale n-threads=2 ! "
-        source_pipeline += "queue name=source_convert_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! "
-        source_pipeline += "videoconvert n-threads=3 name=source_convert qos=false ! "
+        source_pipeline2 = "shmsrc socket-path=/tmp/feed.raw do-timestamp=true is-live=true ! "
+        source_pipeline2 += "video/x-raw, format=NV12, width=1920, height=1080, framerate=30/1 ! "
+        #source_pipeline2 += "videoconvert ! "
+        #source_pipeline2 += "identity name=source_video_convert silent=false ! "
+        #source_pipeline2 += "queue name=source_scale_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! "
+        #source_pipeline2 += "videoscale name=source_videoscale n-threads=2 ! "
+        #source_pipeline2 += "queue name=source_convert_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! "
+        #source_pipeline2 += "videoconvert n-threads=3 name=source_convert qos=false ! "
         #source_pipeline += "video/x-raw, format=RGB, pixel-aspect-ratio=1/1 ! "
         #override the pipeline string to use tracking
-        pipeline_string = (
-           source_pipeline
+
+       
+        access_key = os.getenv("AWS_ACCESS_KEY")
+        secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+        region = os.getenv("AWS_REGION")
+
+        kvs_element = (
+            "video/x-raw,format=NV12,width=1920,height=1080,framerate=30/1 ! "
+    	    + "queue max-size-buffers=2 leaky=downstream ! "
+	        + "videorate ! video/x-raw,framerate=30/1 ! "
+	        + "videoconvert ! video/x-raw,format=I420 ! "
+	        + "x264enc key-int-max=25 tune=zerolatency speed-preset=ultrafast bitrate=1000 ! "
+	        + "h264parse ! "
+	        + f"kvssink stream-name=\"demo_stream\" access-key=\"{access_key}\" secret-key=\"{secret_access_key}\" aws-region=\"{region}\" max-latency=100 "
+        )
+
+        pipeline_string2 = (
+           source_pipeline2
            + "tee name=t ! "
            + QUEUE("bypass_queue", max_size_buffers=20)
+#           + "! video/x-raw,format=NV12,width=1920,height=1080,framerate=30/1 "
+           + "! identity name=sink_0_end silent=false "
            + "! mux.sink_0 "
            + "t. ! "
+           + "queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! "
+           + "videoscale n-threads=2 ! "
+           + "queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! "
+           + "videoconvert n-threads=3 qos=false ! "
+           + "video/x-raw, format=RGB, pixel-aspect-ratio=1/1 ! "
            + QUEUE("queue_hailonet")
-           + "! videoconvert n-threads=3 ! "
-           + f"hailonet hef-path={self.hef_path} batch-size={self.batch_size} {self.thresholds_str} force-writable=true ! "
+           + f"! hailonet hef-path={self.hef_path} batch-size={self.batch_size} {self.thresholds_str} force-writable=true ! "
            + QUEUE("queue_hailofilter")
            + f"! hailofilter so-path={self.post_process_so} qos=false ! "
            + QUEUE("queue_hailotracker")
@@ -133,6 +159,7 @@ class GStreamerDetectionApp(GStreamerApp):
            + QUEUE("queue_hmuc")
            + "! mux.sink_1 "
            + "hailomuxer name=mux ! "
+           + "identity name=mux_inspector silent=false ! "
            + QUEUE("queue_hailo_python")
            + " ! "
            + QUEUE("queue_user_callback")
@@ -143,13 +170,41 @@ class GStreamerDetectionApp(GStreamerApp):
            + "! videoconvert n-threads=3 qos=false ! "
       #     + QUEUE("queue_textoverlay")
       #     + "! textoverlay name=hailo_text text='test text' valignment=top halignment=center ! "
-           #+ QUEUE("queue_hailo_display")
-           + "shmsink socket-path=/tmp/infered.feed sync=false wait-for-connection=false"
-           #+ f"! fpsdisplaysink video-sink={self.video_sink} name=hailo_display sync={self.sync} text-overlay={self.show_fps} signal-fps-measurements=true "
+           + QUEUE("queue_hailo_display")
+           + "! identity name=identity_inspect silent=false  "
+           #+ "! video/x-raw, format=NV12,width=1920,height=1080,framerate=30/1  "
+           #+ "! shmsink socket-path=/tmp/infered.feed sync=false wait-for-connection=false"
+           #+ kvs_element
+           + f"! fpsdisplaysink video-sink={self.video_sink} name=hailo_display sync={self.sync} text-overlay={self.show_fps} signal-fps-measurements=true "
         )
 
-        print(pipeline_string)
-        return pipeline_string
+
+        jarno_pipeline = (
+            "shmsrc socket-path=/tmp/feed.raw do-timestamp=true is-live=true ! "
+            + "video/x-raw, format=NV12, width=1920, height=1080, framerate=30/1 ! "
+            + "videoconvert ! "
+            + "video/x-raw, format=RGB, width=1920, height=1080, framerate=30/1 ! "
+            + f"hailocropper so-path={self.cropper_process_so} function-name=create_crops use-letterbox=true resize-method=inter-area internal-offset=true name=cropper1 "
+            + "hailoaggregator name=agg1 "
+            + "cropper1. ! queue name=bypess1_q leaky=no max-size-buffers=30 max-size-bytes=0 max-size-time=0 ! agg1. "
+            + "cropper1. ! "
+            + "queue leaky=no max-size-buffers=30 max-size-bytes=0 max-size-time=0 ! "
+            + "videoscale qos=false n-threads=2 ! "
+            + "video/x-raw, pixel-aspect-ratio=1/1 ! "
+            + "queue leaky=no max-size-buffers=30 max-size-bytes=0 max-size-time=0 ! "
+            + "hailonet hef-path=yolov8m.hef batch-size=1 ! "
+            + "queue leaky=no max-size-buffers=30 max-size-bytes=0 max-size-time=0 ! "
+            + f"hailofilter so-path={self.post_process_so} qos=false ! "
+            + "queue leaky=no max-size-buffers=30 max-size-bytes=0 max-size-time=0 ! agg1. "
+            + "agg1. ! hailotracker name=hailo_tracker keep-tracked-frames=3 keep-new-frames=3 keep-lost-frames=3 ! "
+            + "queue leaky=no max-size-buffers=30 max-size-bytes=0 max-size-time=0 ! "
+            + "hailooverlay qos=false ! "
+            + "queue leaky=no max-size-buffers=30 max-size-bytes=0 max-size-time=0 ! "
+            + "videoconvert n-threads=2 qos=false ! "
+            + "fpsdisplaysink video-sink=xvimagesink name=hailo_display sync=false"
+        )
+        print(jarno_pipeline)
+        return jarno_pipeline
 
 if __name__ == "__main__":
     # Create an instance of the user app callback class
