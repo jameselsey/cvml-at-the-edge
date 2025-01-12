@@ -201,7 +201,13 @@ class GStreamerDetectionApp(GStreamerApp):
             + "hailooverlay qos=false ! "
             + "queue leaky=no max-size-buffers=30 max-size-bytes=0 max-size-time=0 ! "
             + "videoconvert n-threads=2 qos=false ! "
-            + "fpsdisplaysink video-sink=xvimagesink name=hailo_display sync=false"
+            
+            # fps displaysink
+            #+ "fpsdisplaysink video-sink=xvimagesink name=hailo_display sync=false"
+            
+            # OR try the shared memory sink
+            + "shmsink socket-path=/tmp/infered.feed sync=false wait-for-connection=false"
+            
         )
         print(jarno_pipeline)
         return jarno_pipeline
