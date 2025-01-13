@@ -22,7 +22,7 @@ emitted_ids = set()
 
 # Define the target classes for detection
 # this should align to the COCO list of objects
-target_classes = {'car', 'bus', 'truck', 'motorcycle'}
+target_classes = {'person', 'car', 'bus', 'truck', 'motorcycle'}
 
 # -----------------------------------------------------------------------------------------------
 # User-defined class to be used in the callback function
