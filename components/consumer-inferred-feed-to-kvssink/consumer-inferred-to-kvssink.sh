@@ -5,4 +5,4 @@ gst-launch-1.0 shmsrc socket-path=/tmp/infered.feed do-timestamp=1 ! \
 	videoconvert ! video/x-raw,format=I420 ! \
 	x264enc key-int-max=25 tune=zerolatency speed-preset=ultrafast bitrate=1000 ! \
 	h264parse ! \
-	kvssink stream-name="inferred_stream" access-key="$AWS_ACCESS_KEY" secret-key="$AWS_SECRET_ACCESS_KEY" aws-region="$AWS_REGION" max-latency=100
+	kvssink stream-name="inferred" access-key="$AWS_ACCESS_KEY" secret-key="$AWS_SECRET_ACCESS_KEY" aws-region="$AWS_REGION" max-latency=100

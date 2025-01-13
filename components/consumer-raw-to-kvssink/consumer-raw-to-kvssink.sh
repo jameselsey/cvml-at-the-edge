@@ -5,4 +5,4 @@ gst-launch-1.0 shmsrc socket-path=/tmp/feed.raw do-timestamp=1 ! \
 	videoconvert ! video/x-raw,format=I420 ! \
 	x264enc key-int-max=25 tune=zerolatency speed-preset=ultrafast bitrate=1000 ! \
 	h264parse ! \
-	kvssink stream-name="demo_stream" access-key="$AWS_ACCESS_KEY" secret-key="$AWS_SECRET_ACCESS_KEY" aws-region="$AWS_REGION" max-latency=100
+	kvssink stream-name="raw" access-key="$AWS_ACCESS_KEY" secret-key="$AWS_SECRET_ACCESS_KEY" aws-region="$AWS_REGION" max-latency=100
