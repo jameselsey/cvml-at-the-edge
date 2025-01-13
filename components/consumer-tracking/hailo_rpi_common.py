@@ -472,6 +472,7 @@ class GStreamerApp:
         if identity is None:
             print("Warning: identity_callback element not found, add <identity name=identity_callback> in your pipeline where you want the callback to be called.")
         else:
+            print("Setting up identity callback")
             identity_pad = identity.get_static_pad("src")
             identity_pad.add_probe(Gst.PadProbeType.BUFFER, self.app_callback, self.user_data)
 
